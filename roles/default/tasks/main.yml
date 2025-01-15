@@ -1,0 +1,20 @@
+---
+- name: Run update
+  apt: 
+    update_cache: true
+
+- name: Install NGINX
+  apt:
+    name: nginx
+    state: latest
+
+- name: Start NGINX
+  service:
+    name: nginx
+    state: started
+
+- name: Copy NGINX configuration
+  template:
+    src: "{{ ansible_hostname }}.j2"
+    dest: /etc/nginx/sites-available/default
+  notify: restart-nginx
