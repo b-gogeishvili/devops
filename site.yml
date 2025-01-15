@@ -4,3 +4,17 @@
   roles:
     - default
 
+- hosts: prometheus
+  become: true
+  roles:
+    - prometheus
+
+- hosts: grafana
+  become: true
+  roles:
+    - grafana
+
+- hosts: alertmanager
+  become: true
+  roles:
+    - alertmanager
