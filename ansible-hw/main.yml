@@ -1,0 +1,89 @@
+---
+- hosts: hw
+  become: true
+  tasks:
+    - name: Set Timezone
+      shell:
+        cmd: timedatectl set-timezone "{{ timezone }}"
+
+    - name: Set Hostname
+      shell:
+        cmd: hostnamectl hostname "{{ inventory_hostname }}"
+
+    - name: Disable Firewall
+      service:
+        name: ufw
+        state: stopped
+
+    - name: Install Packages
+      apt: name="{{ item }}"
+      with_items:
+        - "{{ packages }}"
+        - whois
+
+    # SSH Config
+    - name: Copy Banner
+      template:
+        src: ./templates/banner_tbc.j2
+        dest: "{{ banner_file }}"
+
+    - name: Configure SSH
+      template:
+        src: ./templates/sshd_config.j2
+        dest: /etc/ssh/sshd_config
+      notify: "restart_ssh"
+
+    # Root
+    - name: Generate Pasword for Root and Superuser
+      command: mkpasswd -m sha-512 Qwerty -S fixedsalt # hash is same each time
+      register: user_pass
+
+    - name: Change Root Password
+      user:
+        name: root
+        password: "{{ user_pass.stdout }}"
+      when: user_pass.changed
+  
+    # Create and manage "superuser"
+    - name: Add User
+      user:
+        name: superuser
+        password: "{{ user_pass.stdout }}"
+        create_home: true
+      when: user_pass.changed
+
+    - name: Add superuser to Sudoers
+      lineinfile:
+        path: /etc/sudoers
+        state: present
+        regexp: '^superuser ALL='
+        line: 'superuser ALL=(ALL) NOPASSWD: ALL'
+        validate: /usr/sbin/visudo -cf %s
+
+    - name: Match root's authorized_keys
+      copy:
+        src: /root/.ssh/authorized_keys
+        dest: /home/superuser/.ssh/authorized_keys
+        owner: superuser
+        group: superuser
+
+    # Node Exporter and Fluent-bit
+    - name: Install Node Exporter
+      include_tasks: node-exporter.yml
+
+    - name: Install Fluent-bit
+      include_tasks: fluent-bit.yml
+      
+  handlers:
+    - name: Restart SSH Service
+      service:
+        name: ssh
+        state: restarted
+      listen: "restart_ssh"
+
+    - name: Start Node Exporter Service
+      service:
+        name: node_exporter
+        state: started
+        enabled: yes
+      listen: "start_node_exporter"

@@ -1,0 +1,18 @@
+---
+timezone: Asia/Tbilisi
+packages:
+  - vim
+  - wget
+  - mc
+  - tree
+  - bash-completion
+  - ca-certificates
+  - unzip
+  - figlet
+  - traceroute
+  - tcpdump
+  - nfs-common
+ssh_banner: Unauthorized Access is strictly prohibited. TBC Academy
+banner_file: /etc/banner_tbc
+node_exporter_package: node_exporter-1.8.2.linux-amd64.tar.gz
+node_exporter_dir: node_exporter-1.8.2.linux-amd64.tar.gz

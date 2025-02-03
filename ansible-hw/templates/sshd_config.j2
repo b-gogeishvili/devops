@@ -1,0 +1,21 @@
+Include /etc/ssh/sshd_config.d/*.conf
+
+
+Banner "{{ banner_file }}"
+PermitRootLogin yes
+Port 2222
+LoginGraceTime 60
+PermitRootLogin no
+MaxAuthTries 5
+
+KbdInteractiveAuthentication no
+
+UsePAM yes
+
+X11Forwarding yes
+
+PrintMotd no
+
+AcceptEnv LANG LC_*
+
+Subsystem       sftp    /usr/lib/openssh/sftp-server

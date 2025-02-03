@@ -1,0 +1,4 @@
+---
+- name: Install fluent-bit
+  shell:
+    cmd: curl https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | sh
