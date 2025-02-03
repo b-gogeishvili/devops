@@ -1,0 +1,107 @@
+---
+- hosts: all
+  become: true
+  tasks:
+
+    # Install apps
+
+    - name: Update Cache
+      apt: update_cache=true
+
+    - name: Install required tools
+      apt: name={{ item }}
+      with_items:
+        - unzip
+
+    - name: Install PHP
+      apt: name={{ item }}
+      with_items:
+        - php
+        - php-fpm
+        - php-mysql
+        - php-xml
+
+    - name: Remove Apache
+      apt: name=apache2 state=absent
+
+    - name: Install MySQL
+      apt: name={{ item }}
+      with_items:
+        - mysql-server
+        - python3-pymysql
+
+    - name: Generate new root password
+      command: openssl rand -hex 7 creates=/root/.my.cnf
+      register: mysql_new_root_pass
+
+    - name: Create my.cnf
+      template: 
+        src=./templates/mysql/my.cnf
+        dest=/root/.my.cnf
+      when: mysql_new_root_pass.changed
+
+    - name: Update root password
+      mysql_user: 
+        name=root 
+        host={{ item }} 
+        password={{ mysql_new_root_pass.stdout }}
+        state=present
+        login_unix_socket=/var/run/mysqld/mysqld.sock
+      with_items:
+        - "{{ ansible_hostname }}"
+        - 127.0.0.1
+        - ::1
+        - localhost
+      when: mysql_new_root_pass.changed
+
+    - name: Remove anonymous users
+      mysql_user: name="" state=absent login_unix_socket=/var/run/mysqld/mysqld.sock
+      when: mysql_new_root_pass.changed
+    - name: Remove test database
+      mysql_db: name=test state=absent login_unix_socket=/var/run/mysqld/mysqld.sock
+      when: mysql_new_root_pass.changed
+    - name: Output new root password login_unix_socket=/var/run/mysqld/mysqld.sock
+      debug: msg="New root password is {{mysql_new_root_pass.stdout}}"
+      when: mysql_new_root_pass.changed
+
+    - name: Install NGINX
+      apt: name=nginx
+    - name: Start NGINX
+      service: name=nginx state=started
+
+    - name: Copy configuration
+      template: src=./templates/nginx/default dest=/etc/nginx/sites-available/default 
+      notify: restart nginx
+
+    - name: Copy wordpress.zip into tmp 
+      copy: src=./files/wordpress.zip dest=/tmp/wordpress.zip
+
+    - name: Unzip Wordpress
+      unarchive: src=/tmp/wordpress.zip dest=/tmp copy=no creates=/tmp/wordpress/wp-settings.php
+
+    - name: create project folder
+      file: dest=/var/www/wordpress state=directory
+    - name: copy wordpress files
+      command: cp -a /tmp/wordpress/. /var/www/wordpress creates=/var/www/wordpress/wp-settings.php
+
+    - name: Create WordPress MySQL database
+      mysql_db:
+        name: wordpress 
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Create WordPress MySQL user
+      mysql_user: 
+        name: wordpress 
+        host: localhost 
+        password: qwerty 
+        priv: wordpress.*:ALL
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Create wp-config
+      template: src=./templates/wordpress/wp-config.php dest=/var/www/wordpress/wp-config.php
+
+  handlers:
+    - name: restart nginx
+      service: name=nginx state=restarted
+
