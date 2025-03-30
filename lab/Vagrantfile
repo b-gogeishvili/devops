@@ -1,0 +1,23 @@
+Vagrant.configure("2") do |config|
+  config.vm.network "private_network", type: "dhcp"
+
+  config.vm.define "dns" do |dns|
+    dns.vm.hostname = "dns.local.dev"
+    dns.vm.box = "bento/ubuntu-24.04"
+  end
+
+  config.vm.define "webserver" do |webserver|
+    webserver.vm.hostname = "webserver.local.dev"
+    webserver.vm.box = "bento/ubuntu-24.04"
+    webserver.vm.network "forwarded_port", guest: 80, host: 8080
+  end
+
+  config.vm.provision "ansible" do |ansible|
+    ansible.playbook = "provisioning/playbook.yml"
+    ansible.groups = {
+      "webservers" => ["webserver"],
+      "dns" => ["dns"]
+    }
+  end
+end
+

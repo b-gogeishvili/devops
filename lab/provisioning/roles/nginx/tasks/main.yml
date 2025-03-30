@@ -1,0 +1,6 @@
+---
+- name: Install NGINX
+  ansible.builtin.apt:
+    name: nginx
+    update_cache: yes
+  notify: start_nginx
